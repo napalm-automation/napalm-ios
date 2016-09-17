@@ -17,7 +17,6 @@ from __future__ import print_function
 
 import re
 
-
 from netmiko import ConnectHandler, FileTransfer
 from napalm_base.base import NetworkDriver
 from napalm_base.exceptions import ReplaceConfigException, MergeConfigException
