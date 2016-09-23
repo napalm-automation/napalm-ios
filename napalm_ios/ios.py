@@ -20,6 +20,7 @@ import re
 from netmiko import ConnectHandler, FileTransfer
 from napalm_base.base import NetworkDriver
 from napalm_base.exceptions import ReplaceConfigException, MergeConfigException
+from os.path import basename
 
 # Easier to store these as constants
 HOUR_SECONDS = 3600
@@ -77,6 +78,23 @@ class IOSDriver(NetworkDriver):
         self.device = None
         self.config_replace = False
         self.interface_map = {}
+
+    def file_copy(self, src, dest=None, file_system='flash:'):
+        """
+        SCP file to device filesystem, filesystem defaults to flash:.
+
+        Return None or raise exception
+        """
+        if dest is None:
+            dest = basename(src) 
+        if src:
+            (return_status, msg) = self.scp_file(source_file=src,
+                                                 dest_file=dest,
+                                                 file_system=file_system)
+            if not return_status:
+                if msg == '':
+                    msg = "SCP transfer to remote device failed"
+                raise ReplaceConfigException(msg)
 
     def open(self):
         """Open a connection to the device."""
