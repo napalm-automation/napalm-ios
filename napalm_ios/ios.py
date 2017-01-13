@@ -17,6 +17,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import re
+import os
+import uuid
 
 from netmiko import ConnectHandler, FileTransfer
 from netmiko import __version__ as netmiko_version
@@ -149,12 +151,21 @@ class IOSDriver(NetworkDriver):
         Return None or raise exception
         """
         self.config_replace = True
+        temp_file_created = False
         if config:
-            raise NotImplementedError
+            # will save the config content in a temporary file under /tmp/
+            rand_fname = str(uuid.uuid4())
+            filename = os.path.join('/tmp/', rand_fname)
+            with open(filename, 'w') as fobj:
+                fobj.write(config)
+            temp_file_created = True
         if filename:
             (return_status, msg) = self._scp_file(source_file=filename,
                                                   dest_file=self.candidate_cfg,
                                                   file_system=self.dest_file_system)
+            if temp_file_created:
+                # removing the temp file
+                os.remove(filename)
             if not return_status:
                 if msg == '':
                     msg = "SCP transfer to remote device failed"
