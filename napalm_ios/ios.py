@@ -19,12 +19,14 @@ from __future__ import unicode_literals
 import re
 import os
 import uuid
+import time
 import tempfile
+from threading import Lock
 
 from netmiko import ConnectHandler, FileTransfer, InLineTransfer
 from netmiko import __version__ as netmiko_version
 from napalm_base.base import NetworkDriver
-from napalm_base.exceptions import ReplaceConfigException, MergeConfigException
+from napalm_base.exceptions import ReplaceConfigException, MergeConfigException, CommandTimeoutException
 from napalm_base.utils import py23_compat
 import napalm_base.constants as C
 import napalm_base.helpers
@@ -107,6 +109,8 @@ class IOSDriver(NetworkDriver):
         self.config_replace = False
         self.interface_map = {}
 
+        self._ssh_session_locker = Lock()
+
     def open(self):
         """Open a connection to the device."""
         self.device = ConnectHandler(device_type='cisco_ios',
@@ -127,18 +131,46 @@ class IOSDriver(NetworkDriver):
         """Close the connection to the device."""
         self.device.disconnect()
 
+    def _timeout_exceeded(self, start, msg='Timeout exceeded!'):
+        if not start:
+            return False  # reference not specified, noth to compare => no error
+        if time.time() - start > self.timeout:
+            # it timeout exceeded, throw TimeoutError
+            raise CommandTimeoutException(msg)
+        return False
+
+    def _lock_ssh_session(self, start):
+        while (not self._ssh_session_locker.acquire(False)
+            and not self._timeout_exceeded(start, 'Waiting to acquire the SSH session!')):
+                # will wait here till the SSH channel is free again and ready to receive new requests
+                # if stays too much, _timeout_exceeded will raise CommandTimeoutException
+                pass  # do nothing, just wait
+        return True  # ready to go now
+
+    def _unlock_ssh_session(self):
+        if self._ssh_session_locker.locked():
+            self._ssh_session_locker.release()
+
     def _send_command(self, command):
         """Wrapper for self.device.send.command().
 
         If command is a list will iterate through commands until valid command.
         """
+        start = time.time()
+        self._lock_ssh_session(start)  # acquire the SSH channel
         if isinstance(command, list):
-            for cmd in command:
-                output = self.device.send_command(cmd)
-                if "% Invalid" not in output:
-                    break
+            try:
+                for cmd in command:
+                    output = self.device.send_command(cmd)
+                    if "% Invalid" not in output:
+                        break
+            finally:
+                self._unlock_ssh_session()
         else:
-            output = self.device.send_command(command)
+            try:
+                output = self.device.send_command(command)
+            finally:
+                self._unlock_ssh_session()
         return self._send_command_postprocess(output)
 
     def is_alive(self):
