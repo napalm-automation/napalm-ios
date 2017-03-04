@@ -146,7 +146,7 @@ class IOSDriver(NetworkDriver):
                and not self._timeout_exceeded(start, 'Waiting to acquire the SSH session!')):
                 # will wait here till the SSH channel is free again and ready to receive requests
                 # if stays too much, _timeout_exceeded will raise CommandTimeoutException
-                pass  # do nothing, just wait
+                time.sleep(0.01)
         return True  # ready to go now
 
     def _unlock_ssh_session(self):
