@@ -656,7 +656,8 @@ class IOSDriver(NetworkDriver):
         for lldp_entry in split_output.splitlines():
             # Example, twb-sf-hpsw1    Fa4   120   B   17
             try:
-                device_id, local_int_brief, hold_time, capability, remote_port = re.split(r'\s{2,}', lldp_entry)
+                device_id, local_int_brief, hold_time, \
+                capability, remote_port = re.split(r'\s{2,}', lldp_entry)
             except ValueError:
                 if len(lldp_entry.split()) == 4:
                     # Four fields might be long_name or missing capability
