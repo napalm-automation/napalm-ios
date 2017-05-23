@@ -906,89 +906,29 @@ class IOSDriver(NetworkDriver):
         # default values.
         last_flapped = -1.0
 
-        # creating the parsing regex.
-        mac_regex = r".*,\saddress\sis\s(?P<mac_address>\S+).*"
-        speed_regex = r".*BW\s(?P<speed>\d+)\s(?P<speed_format>\S+).*"
-
-        command = 'show ip interface brief'
+        command = 'show interfaces'
         output = self._send_command(command)
-        for line in output.splitlines():
-            if 'Interface' in line and 'Status' in line:
-                continue
-            fields = line.split()
-            """
-            router#sh ip interface brief
-            Interface                  IP-Address      OK? Method Status                Protocol
-            FastEthernet8              10.65.43.169    YES DHCP   up                    up
-            GigabitEthernet0           unassigned      YES NVRAM  administratively down down
-            Loopback234                unassigned      YES unset  up                    up
-            Loopback555                unassigned      YES unset  up                    up
-            NVI0                       unassigned      YES unset  administratively down down
-            Tunnel0                    10.63.100.9     YES NVRAM  up                    up
-            Tunnel1                    10.63.101.9     YES NVRAM  up                    up
-            Vlan1                      unassigned      YES unset  up                    up
-            Vlan100                    10.40.0.1       YES NVRAM  up                    up
-            Vlan200                    10.63.176.57    YES NVRAM  up                    up
-            Wlan-GigabitEthernet0      unassigned      YES unset  up                    up
-            wlan-ap0                   10.40.0.1       YES unset  up                    up
-            """
 
-            # Check for administratively down
-            if len(fields) == 6:
-                interface, ip_address, ok, method, status, protocol = fields
-            elif len(fields) == 7:
-                # Administratively down is two fields in the output for status
-                interface, ip_address, ok, method, status, status2, protocol = fields
-            else:
-                raise ValueError(u"Unexpected Response from the device")
+        intfs = napalm_base.helpers.textfsm_extractor(self, 'show_interfaces', output)
 
-            status = status.lower()
-            protocol = protocol.lower()
-            if 'admin' in status:
-                is_enabled = False
-            else:
-                is_enabled = True
-            is_up = bool('up' in protocol)
-            interface_list[interface] = {
-                'is_up': is_up,
-                'is_enabled': is_enabled,
-                'last_flapped': last_flapped,
+        for data in intfs:
+            data['adminstatus'] = True if 'admin' not in data['phystatus'] else False
+            data['linestatus'] = True if data['linestatus'] == 'up' else False
+
+            data['speed'] = int(data['speed'])
+            if data['speedfmt'].startswith('Kb'):
+                data['speed'] /= 1000
+            elif data['speedfmt'].startswith('Gb'):
+                data['speed'] *= 1000
+
+            interface_list[data['intf']] = {
+                    'description': data['description'],
+                    'is_enabled': data['adminstatus'],
+                    'is_up': data['linestatus'],
+                    'last_flapped': last_flapped,
+                    'mac_address': napalm_base.helpers.mac(data['ethaddr']),
+                    'speed': data['speed']
             }
-
-        for interface in interface_list:
-            show_command = "show interface {0}".format(interface)
-            interface_output = self._send_command(show_command)
-            try:
-                # description filter
-                description = re.search(r"  Description: (.+)", interface_output)
-                interface_list[interface]['description'] = description.group(1).strip('\r')
-            except AttributeError:
-                interface_list[interface]['description'] = u'N/A'
-
-            try:
-                # mac_address filter.
-                match_mac = re.match(mac_regex, interface_output, flags=re.DOTALL)
-                group_mac = match_mac.groupdict()
-                mac_address = group_mac["mac_address"]
-                mac_address = napalm_base.helpers.mac(mac_address)
-                interface_list[interface]['mac_address'] = py23_compat.text_type(mac_address)
-            except AttributeError:
-                interface_list[interface]['mac_address'] = u'N/A'
-            try:
-                # BW filter.
-                match_speed = re.match(speed_regex, interface_output, flags=re.DOTALL)
-                group_speed = match_speed.groupdict()
-                speed = group_speed["speed"]
-                speed_format = group_speed["speed_format"]
-                if speed_format == 'Mbit':
-                    interface_list[interface]['speed'] = int(speed)
-                else:
-                    speed = int(speed) / 1000
-                    interface_list[interface]['speed'] = int(speed)
-            except AttributeError:
-                interface_list[interface]['speed'] = -1
-            except ValueError:
-                interface_list[interface]['speed'] = -1
 
         return interface_list
 
