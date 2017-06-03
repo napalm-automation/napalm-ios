@@ -901,36 +901,53 @@ class IOSDriver(NetworkDriver):
                         'mac_address': u'a493.4cc1.67a7',
                         'speed': 100}}
         """
-        interface_list = {}
-
-        # default values.
-        last_flapped = -1.0
+        interfaces = {}
 
         command = 'show interfaces'
         output = self._send_command(command)
 
-        intfs = napalm_base.helpers.textfsm_extractor(self, 'show_interfaces', output)
+        interface_regex = re.compile(
+                r"^(\S+) is (up|down|administratively down), line protocol is (\S+)")
+        mac_addr_regex = re.compile(r"Hardware.*address is ({})".format(MAC_REGEX))
+        descr_regex = re.compile("^\s+Description: (.+)$")
+        speed_regex = re.compile(r"^\s+MTU (\d+).+ BW (\d+) ([KMG]?b)")
 
-        for data in intfs:
-            data['adminstatus'] = True if 'admin' not in data['phystatus'] else False
-            data['linestatus'] = True if data['linestatus'] == 'up' else False
+        cur_intf = None
+        for line in output.splitlines():
+            m = interface_regex.search(line)
+            if m:
+                cur_intf = m.group(1)
+                adminstatus = True if 'admin' not in m.group(2) else False
+                linestatus = True if m.group(3) == 'up' else False
+                interfaces[cur_intf] = {
+                    'description': '',
+                    'is_enabled': adminstatus,
+                    'is_up': linestatus,
+                    'last_flapped': -1,
+                    'mac_address': '',
+                    'speed': -1
+                }
+                continue
 
-            data['speed'] = int(data['speed'])
-            if data['speedfmt'].startswith('Kb'):
-                data['speed'] /= 1000
-            elif data['speedfmt'].startswith('Gb'):
-                data['speed'] *= 1000
+            m = mac_addr_regex.search(line)
+            if m:
+                interfaces[cur_intf]['mac_address'] = napalm_base.helpers.mac(m.group(1))
 
-            interface_list[data['intf']] = {
-                    'description': data['description'],
-                    'is_enabled': data['adminstatus'],
-                    'is_up': data['linestatus'],
-                    'last_flapped': last_flapped,
-                    'mac_address': napalm_base.helpers.mac(data['ethaddr']),
-                    'speed': data['speed']
-            }
+            m = descr_regex.search(line)
+            if m:
+                interfaces[cur_intf]['description'] = m.group(1)
 
-        return interface_list
+            m = speed_regex.search(line)
+            if m:
+                speed = int(m.group(2))
+                speedfmt = m.group(3)
+                if speedfmt.startswith('Kb'):
+                    speed /= 1000
+                elif speedfmt.startswith('Gb'):
+                    speed *= 1000
+                interfaces[cur_intf]['speed'] = speed
+
+        return interfaces
 
     def get_interfaces_ip(self):
         """
