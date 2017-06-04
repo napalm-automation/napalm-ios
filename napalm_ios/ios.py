@@ -914,96 +914,53 @@ class IOSDriver(NetworkDriver):
                         'mac_address': u'a493.4cc1.67a7',
                         'speed': 100}}
         """
-        interface_list = {}
+        interfaces = {}
 
-        # default values.
-        last_flapped = -1.0
-
-        # creating the parsing regex.
-        mac_regex = r".*,\saddress\sis\s(?P<mac_address>\S+).*"
-        speed_regex = r".*BW\s(?P<speed>\d+)\s(?P<speed_format>\S+).*"
-
-        command = 'show ip interface brief'
+        command = 'show interfaces'
         output = self._send_command(command)
+
+        interface_regex = re.compile(
+                r"^(\S+) is (up|down|administratively down), line protocol is (\S+)")
+        mac_addr_regex = re.compile(r"Hardware.*address is ({})".format(MAC_REGEX))
+        descr_regex = re.compile("^\s+Description: (.+)$")
+        speed_regex = re.compile(r"^\s+MTU (\d+).+ BW (\d+) ([KMG]?b)")
+
+        cur_intf = None
         for line in output.splitlines():
-            if 'Interface' in line and 'Status' in line:
+            m = interface_regex.search(line)
+            if m:
+                cur_intf = m.group(1)
+                adminstatus = True if 'admin' not in m.group(2) else False
+                linestatus = True if m.group(3) == 'up' else False
+                interfaces[cur_intf] = {
+                    'description': '',
+                    'is_enabled': adminstatus,
+                    'is_up': linestatus,
+                    'last_flapped': -1.0,
+                    'mac_address': '',
+                    'speed': -1
+                }
                 continue
-            fields = line.split()
-            """
-            router#sh ip interface brief
-            Interface                  IP-Address      OK? Method Status                Protocol
-            FastEthernet8              10.65.43.169    YES DHCP   up                    up
-            GigabitEthernet0           unassigned      YES NVRAM  administratively down down
-            Loopback234                unassigned      YES unset  up                    up
-            Loopback555                unassigned      YES unset  up                    up
-            NVI0                       unassigned      YES unset  administratively down down
-            Tunnel0                    10.63.100.9     YES NVRAM  up                    up
-            Tunnel1                    10.63.101.9     YES NVRAM  up                    up
-            Vlan1                      unassigned      YES unset  up                    up
-            Vlan100                    10.40.0.1       YES NVRAM  up                    up
-            Vlan200                    10.63.176.57    YES NVRAM  up                    up
-            Wlan-GigabitEthernet0      unassigned      YES unset  up                    up
-            wlan-ap0                   10.40.0.1       YES unset  up                    up
-            """
 
-            # Check for administratively down
-            if len(fields) == 6:
-                interface, ip_address, ok, method, status, protocol = fields
-            elif len(fields) == 7:
-                # Administratively down is two fields in the output for status
-                interface, ip_address, ok, method, status, status2, protocol = fields
-            else:
-                raise ValueError(u"Unexpected Response from the device")
+            m = mac_addr_regex.search(line)
+            if m:
+                interfaces[cur_intf]['mac_address'] = napalm_base.helpers.mac(m.group(1))
 
-            status = status.lower()
-            protocol = protocol.lower()
-            if 'admin' in status:
-                is_enabled = False
-            else:
-                is_enabled = True
-            is_up = bool('up' in protocol)
-            interface_list[interface] = {
-                'is_up': is_up,
-                'is_enabled': is_enabled,
-                'last_flapped': last_flapped,
-            }
+            m = descr_regex.search(line)
+            if m:
+                interfaces[cur_intf]['description'] = m.group(1)
 
-        for interface in interface_list:
-            show_command = "show interface {0}".format(interface)
-            interface_output = self._send_command(show_command)
-            try:
-                # description filter
-                description = re.search(r"  Description: (.+)", interface_output)
-                interface_list[interface]['description'] = description.group(1).strip('\r')
-            except AttributeError:
-                interface_list[interface]['description'] = u'N/A'
+            m = speed_regex.search(line)
+            if m:
+                speed = int(m.group(2))
+                speedfmt = m.group(3)
+                if speedfmt.startswith('Kb'):
+                    speed /= 1000
+                elif speedfmt.startswith('Gb'):
+                    speed *= 1000
+                interfaces[cur_intf]['speed'] = int(speed)
 
-            try:
-                # mac_address filter.
-                match_mac = re.match(mac_regex, interface_output, flags=re.DOTALL)
-                group_mac = match_mac.groupdict()
-                mac_address = group_mac["mac_address"]
-                mac_address = napalm_base.helpers.mac(mac_address)
-                interface_list[interface]['mac_address'] = py23_compat.text_type(mac_address)
-            except AttributeError:
-                interface_list[interface]['mac_address'] = u'N/A'
-            try:
-                # BW filter.
-                match_speed = re.match(speed_regex, interface_output, flags=re.DOTALL)
-                group_speed = match_speed.groupdict()
-                speed = group_speed["speed"]
-                speed_format = group_speed["speed_format"]
-                if speed_format == 'Mbit':
-                    interface_list[interface]['speed'] = int(speed)
-                else:
-                    speed = int(speed) / 1000
-                    interface_list[interface]['speed'] = int(speed)
-            except AttributeError:
-                interface_list[interface]['speed'] = -1
-            except ValueError:
-                interface_list[interface]['speed'] = -1
-
-        return interface_list
+        return interfaces
 
     def get_interfaces_ip(self):
         """
