@@ -923,7 +923,7 @@ class IOSDriver(NetworkDriver):
                     'description': '',
                     'is_enabled': adminstatus,
                     'is_up': linestatus,
-                    'last_flapped': -1,
+                    'last_flapped': -1.0,
                     'mac_address': '',
                     'speed': -1
                 }
@@ -945,7 +945,7 @@ class IOSDriver(NetworkDriver):
                     speed /= 1000
                 elif speedfmt.startswith('Gb'):
                     speed *= 1000
-                interfaces[cur_intf]['speed'] = speed
+                interfaces[cur_intf]['speed'] = int(speed)
 
         return interfaces
 
