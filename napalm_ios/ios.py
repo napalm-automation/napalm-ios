@@ -504,7 +504,8 @@ class IOSDriver(NetworkDriver):
 
             # Transfer file
             transfer.transfer_file()
-
+            if enable_scp:
+                transfer.disable_scp()
             # Compares MD5 between local-remote files
             if transfer.verify_file():
                 msg = "File successfully transferred to remote device"
