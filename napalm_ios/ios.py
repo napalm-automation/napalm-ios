@@ -947,7 +947,7 @@ class IOSDriver(NetworkDriver):
         interface_dict = {}
         for line in output.splitlines():
 
-           interface_regex_simple = r"^(\S+?)\s+is\s+(.+?)"
+            interface_regex_simple = r"^(\S+?)\s+is\s+(.+?)"
             if re.search(interface_regex_simple, line):
                 interface_match_simple = re.search(interface_regex_simple, line)
                 interface = interface_match_simple.groups()[0]
