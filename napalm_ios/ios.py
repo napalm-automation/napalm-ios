@@ -956,6 +956,7 @@ class IOSDriver(NetworkDriver):
                 interface_regex = r"^(\S+?)\s+is\s+(.+?),\s+line\s+protocol\s+is\s+(\S+)"
                 if re.search(interface_regex, line):
                     interface_match = re.search(interface_regex, line)
+                    status = interface_match.groups()[1]
                     protocol = interface_match.groups()[2]
 
                     if 'admin' in status:
@@ -966,8 +967,6 @@ class IOSDriver(NetworkDriver):
                 else:
                         is_enabled = True
                         is_up = True
-
-
             mac_addr_regex = r"^\s+Hardware.+address\s+is\s+({})".format(MAC_REGEX)
             if re.search(mac_addr_regex, line):
                 mac_addr_match = re.search(mac_addr_regex, line)
