@@ -700,11 +700,11 @@ class IOSDriver(NetworkDriver):
             if len(cdp_entry.split()) == 1:
                 # Only one field means the hostname was too long and this line belongs with the next one
                 # Retrieve the
-                device_id = cdp_entry
+                device_id = cdp_entry.strip()
                 partial_line = True
                 continue
             if partial_line == False:
-                device_id = cdp_entry[:16]
+                device_id = cdp_entry[:16].strip()
             device_id = device_id.split('.')[0] # We want only the hostname, not the FQDN
             local_int_brief = cdp_entry[17:35].strip()
             hold_time = cdp_entry[35:46].strip()
