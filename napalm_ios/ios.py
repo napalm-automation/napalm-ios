@@ -120,7 +120,7 @@ class IOSDriver(NetworkDriver):
             except KeyError:
                 pass
         self.global_delay_factor = optional_args.get('global_delay_factor', 1)
-        self.port = optional_args.get('port', {'ssh': 22, 'telnet': 23}[self.transport])
+        self.port = optional_args.get('port', 22)
 
         self.device = None
         self.config_replace = False
@@ -130,10 +130,7 @@ class IOSDriver(NetworkDriver):
 
     def open(self):
         """Open a connection to the device."""
-        device_type = 'cisco_ios'
-        if self.transport != 'ssh':
-            device_type += '_' + self.transport
-        self.device = ConnectHandler(device_type=device_type,
+        self.device = ConnectHandler(device_type='cisco_ios',,
                                      host=self.hostname,
                                      username=self.username,
                                      password=self.password,
@@ -675,7 +672,7 @@ class IOSDriver(NetworkDriver):
 
         return optics_detail
 
-    def get_cdp_neighbors(self):
+    def _get_cdp_neighbors(self):
         """IOS implementation of get_cdp_neighbors."""
         cdp = {}
         command = 'show cdp neighbors'
@@ -729,7 +726,7 @@ class IOSDriver(NetworkDriver):
         
         # Check if router supports the command
         if '% Invalid input' in output or '% LLDP is not enabled' in output:
-            return self.get_cdp_neighbors()
+            return self._get_cdp_neighbors()
 
         # Process the output to obtain just the LLDP entries
         try:
