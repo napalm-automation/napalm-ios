@@ -1672,7 +1672,8 @@ class IOSDriver(NetworkDriver):
 
         Returns the NTP servers configuration as dictionary.
         The keys of the dictionary represent the IP Addresses of the servers.
-        Inner dictionaries do not have yet any available keys.
+        #Inner dictionaries do not have yet any available keys.
+        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP server was defined inside a VRF.
         Example::
             {
                 '192.168.0.1': {},
@@ -1688,11 +1689,38 @@ class IOSDriver(NetworkDriver):
         for line in output.splitlines():
             split_line = line.split()
             if "vrf" == split_line[2]:
-                ntp_servers[split_line[4]] = {}
+                ntp_servers[split_line[4]] = {'vrf' : split_line[3]}
             else:
                 ntp_servers[split_line[2]] = {}
 
         return ntp_servers
+
+    def get_ntp_peers(self):
+        """Implementation of get_ntp_peers for IOS.
+
+        Returns the NTP peers configuration as dictionary.
+        The keys of the dictionary represent the IP Addresses of the peers.
+        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP server was defined inside a VRF.
+        Example::
+            {
+                '192.168.0.1': {},
+                '17.72.148.53': { 'vrf' : 'INTERNET'},
+                '37.187.56.220': {},
+                '162.158.20.18': {}
+            }
+        """
+        ntp_peers = {}
+        command = 'show run | include ntp peer'
+        output = self._send_command(command)
+
+        for line in output.splitlines():
+            split_line = line.split()
+            if "vrf" == split_line[2]:
+                ntp_peers[split_line[4]] = {'vrf' : split_line[3]}
+            else:
+                ntp_peers[split_line[2]] = {}
+
+        return ntp_peers
 
     def get_ntp_stats(self):
         """Implementation of get_ntp_stats for IOS."""
