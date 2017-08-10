@@ -1672,8 +1672,8 @@ class IOSDriver(NetworkDriver):
 
         Returns the NTP servers configuration as dictionary.
         The keys of the dictionary represent the IP Addresses of the servers.
-        #Inner dictionaries do not have yet any available keys.
-        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP server was defined inside a VRF.
+        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP
+        server was defined inside a VRF.
         Example::
             {
                 '192.168.0.1': {},
@@ -1689,7 +1689,7 @@ class IOSDriver(NetworkDriver):
         for line in output.splitlines():
             split_line = line.split()
             if "vrf" == split_line[2]:
-                ntp_servers[split_line[4]] = {'vrf' : split_line[3]}
+                ntp_servers[split_line[4]] = {'vrf': split_line[3]}
             else:
                 ntp_servers[split_line[2]] = {}
 
@@ -1700,7 +1700,8 @@ class IOSDriver(NetworkDriver):
 
         Returns the NTP peers configuration as dictionary.
         The keys of the dictionary represent the IP Addresses of the peers.
-        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP server was defined inside a VRF.
+        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP
+        peer was defined inside a VRF.
         Example::
             {
                 '192.168.0.1': {},
@@ -1716,7 +1717,7 @@ class IOSDriver(NetworkDriver):
         for line in output.splitlines():
             split_line = line.split()
             if "vrf" == split_line[2]:
-                ntp_peers[split_line[4]] = {'vrf' : split_line[3]}
+                ntp_peers[split_line[4]] = {'vrf': split_line[3]}
             else:
                 ntp_peers[split_line[2]] = {}
 

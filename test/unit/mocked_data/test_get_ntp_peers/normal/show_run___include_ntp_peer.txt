@@ -1,0 +1,4 @@
+ntp peer 192.168.0.1 prefer
+ntp peer 17.72.148.53
+ntp peer vrf NAPALM 37.187.56.220
+ntp peer 2001:DB8:0:0:8:800:200C:417A version 4
