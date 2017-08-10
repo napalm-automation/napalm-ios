@@ -1672,8 +1672,7 @@ class IOSDriver(NetworkDriver):
 
         Returns the NTP servers configuration as dictionary.
         The keys of the dictionary represent the IP Addresses of the servers.
-        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP
-        server was defined inside a VRF.
+        Inner dictionaries do not have yet any available keys.
         Example::
             {
                 '192.168.0.1': {},
@@ -1689,7 +1688,7 @@ class IOSDriver(NetworkDriver):
         for line in output.splitlines():
             split_line = line.split()
             if "vrf" == split_line[2]:
-                ntp_servers[split_line[4]] = {'vrf': split_line[3]}
+                ntp_servers[split_line[4]] = {}
             else:
                 ntp_servers[split_line[2]] = {}
 
@@ -1698,14 +1697,13 @@ class IOSDriver(NetworkDriver):
     def get_ntp_peers(self):
         """Implementation of get_ntp_peers for IOS.
 
-        Returns the NTP peers configuration as dictionary.
-        The keys of the dictionary represent the IP Addresses of the peers.
-        Currently the only available key for the inner dictionaries is  'vrf' in case the NTP
-        peer was defined inside a VRF.
+        Returns the NTP servers configuration as dictionary.
+        The keys of the dictionary represent the IP Addresses of the servers.
+        Inner dictionaries do not have yet any available keys.
         Example::
             {
                 '192.168.0.1': {},
-                '17.72.148.53': { 'vrf' : 'INTERNET'},
+                '17.72.148.53': {},
                 '37.187.56.220': {},
                 '162.158.20.18': {}
             }
@@ -1717,7 +1715,7 @@ class IOSDriver(NetworkDriver):
         for line in output.splitlines():
             split_line = line.split()
             if "vrf" == split_line[2]:
-                ntp_peers[split_line[4]] = {'vrf': split_line[3]}
+                ntp_peers[split_line[4]] = {}
             else:
                 ntp_peers[split_line[2]] = {}
 
