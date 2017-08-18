@@ -76,6 +76,8 @@ class IOSDriver(NetworkDriver):
         self.password = password
         self.timeout = timeout
 
+        self.transport = optional_args.get('transport', 'ssh')
+
         # Retrieve file names
         self.candidate_cfg = optional_args.get('candidate_cfg', 'candidate_config.txt')
         self.merge_cfg = optional_args.get('merge_cfg', 'merge_config.txt')
@@ -128,7 +130,7 @@ class IOSDriver(NetworkDriver):
 
     def open(self):
         """Open a connection to the device."""
-        self.device = ConnectHandler(device_type='cisco_ios',
+        self.device = ConnectHandler(device_type='cisco_ios',,
                                      host=self.hostname,
                                      username=self.username,
                                      password=self.password,
@@ -673,15 +675,61 @@ class IOSDriver(NetworkDriver):
 
         return optics_detail
 
+    def _get_cdp_neighbors(self):
+        """IOS implementation of get_cdp_neighbors."""
+        cdp = {}
+        command = 'show cdp neighbors'
+        output = self._send_command(command)
+        
+        # Check if router supports the command
+        if '% Invalid input' in output:
+            return {}
+        
+        # Process the output to obtain just the CDP entries
+        try:
+            split_output = re.split(r'^Device ID.*$', output, flags=re.M)[1]
+            split_output = re.split(r'^Total cdp entries displayed.*$', split_output, flags=re.M)[0]
+        except IndexError:
+            return {}
+        
+        split_output = split_output.strip()
+        
+        partial_line = False # When true, the hostname is on a different line than the other entries
+        for cdp_entry in split_output.splitlines():
+            # Example, Router3  Eth 0/2 138  R B  Linux Uni Eth 0/1
+            # We can't use the same method as for LLDP because there are spaces between items
+            # belonging in the same column. Instead we parse the output using the column lenghts,
+            # hoping these have a fixed size between different IOS versions.
+            if len(cdp_entry.split()) == 1:
+                # Only one field means the hostname was too long and this line belongs with the next one
+                # Retrieve the
+                device_id = cdp_entry.strip()
+                partial_line = True
+                continue
+            if partial_line == False:
+                device_id = cdp_entry[:16].strip()
+            device_id = device_id.split('.')[0] # We want only the hostname, not the FQDN
+            local_int_brief = cdp_entry[17:35].strip()
+            hold_time = cdp_entry[35:46].strip()
+            capability = cdp_entry[46:58].strip()
+            remote_port = cdp_entry[68:].strip()
+            platform_tmp = cdp_entry[58:68].strip() # We might want to retrieve the non-truncated version should we decide to return this information
+            local_port = self._expand_interface_name(local_int_brief)
+            entry = {'port': remote_port, 'hostname': device_id}
+            cdp.setdefault(local_port, [])
+            cdp[local_port].append(entry)
+            partial_line = False
+        return cdp
+	
     def get_lldp_neighbors(self):
         """IOS implementation of get_lldp_neighbors."""
         lldp = {}
         command = 'show lldp neighbors'
         output = self._send_command(command)
-
+        
         # Check if router supports the command
-        if '% Invalid input' in output:
-            return {}
+        if '% Invalid input' in output or '% LLDP is not enabled' in output:
+            return self._get_cdp_neighbors()
 
         # Process the output to obtain just the LLDP entries
         try:
