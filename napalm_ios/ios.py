@@ -86,6 +86,20 @@ class IOSDriver(NetworkDriver):
         self._dest_file_system = optional_args.get('dest_file_system', None)
         self.auto_rollback_on_error = optional_args.get('auto_rollback_on_error', True)
 
+        self.global_delay_factor = optional_args.get('global_delay_factor', 1)
+        self.port = optional_args.get('port', 22)
+
+        # secret password
+        self.secret = optional_args.get('secret', '')
+
+        # telnet support
+        self.transport = optional_args.get('transport', 'cisco_ios')
+        if self.transport == 'ssh':
+            self.transport = 'cisco_ios'
+        elif self.transport == 'telnet':
+            self.transport = 'cisco_ios_telnet'
+            self.port = optional_args.get('port', 23)
+
         # Netmiko possible arguments
         netmiko_argument_map = {
             'port': None,
@@ -117,8 +131,6 @@ class IOSDriver(NetworkDriver):
                 self.netmiko_optional_args[k] = optional_args[k]
             except KeyError:
                 pass
-        self.global_delay_factor = optional_args.get('global_delay_factor', 1)
-        self.port = optional_args.get('port', 22)
 
         self.device = None
         self.config_replace = False
@@ -128,7 +140,7 @@ class IOSDriver(NetworkDriver):
 
     def open(self):
         """Open a connection to the device."""
-        self.device = ConnectHandler(device_type='cisco_ios',
+        self.device = ConnectHandler(device_type=self.transport,
                                      host=self.hostname,
                                      username=self.username,
                                      password=self.password,
