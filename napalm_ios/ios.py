@@ -2191,3 +2191,71 @@ class IOSDriver(NetworkDriver):
         if self.device and self._dest_file_system is None:
             self._dest_file_system = self._discover_file_system()
         return self._dest_file_system
+
+    def get_ipv6_neighbors_table(self):
+        """
+        Get IPv6 neighbors table information.
+
+        Return a list of dictionaries having the following set of keys:
+            * interface (string)
+            * mac (string)
+            * ip (string)
+            * age (float)
+            * state (string)
+
+        For example::
+            [
+                {
+                    'interface' : 'MgmtEth0/RSP0/CPU0/0',
+                    'mac'       : '5c:5e:ab:da:3c:f0',
+                    'ip'        : '2001:db8:1:1::1',
+                    'age'       : 1454496274.84,
+                    'state'     : 'REACH'
+                },
+                {
+                    'interface': 'MgmtEth0/RSP0/CPU0/0',
+                    'mac'       : '66:0e:94:96:e0:ff',
+                    'ip'        : '2001:db8:1:1::2',
+                    'age'       : 1435641582.49,
+                    'state'     : 'STALE'
+                }
+            ]
+        """
+        ipv6_neighbors_table = []
+
+        command = 'show ipv6 neighbors'
+        output = self._send_command(command)
+
+        # Skip the first line which is a header
+        output = output.split('\n')
+        output = output[1:]
+
+        for line in output:
+            if len(line) == 0:
+                return {}
+            if len(line.split()) == 5:
+                address, age, mac, state, interface = line.split()
+            else:
+                raise ValueError("Unexpected output from: {}".format(line.split()))
+
+            try:
+                if age == '-':
+                    age = 0
+                age = float(age)
+            except ValueError:
+                raise ValueError("Unable to convert age value to float: {}".format(age))
+
+            # Validate we matched correctly
+            if not re.search(IPV6_ADDR_REGEX, address):
+                raise ValueError("Invalid IPv6 Address detected: {}".format(address))
+            if not re.search(RE_MAC, mac):
+                raise ValueError("Invalid MAC Address detected: {}".format(mac))
+            entry = {
+                'interface': interface,
+                'mac': napalm_base.helpers.mac(mac),
+                'ip': address,
+                'age': age,
+                'state': state
+            }
+            ipv6_neighbors_table.append(entry)
+        return ipv6_neighbors_table
