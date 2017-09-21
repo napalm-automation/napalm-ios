@@ -2238,6 +2238,10 @@ class IOSDriver(NetworkDriver):
             else:
                 raise ValueError("Unexpected output from: {}".format(line.split()))
 
+            # 2001:DB8:1:2::3:4                 0 -               INCMP Gi0/0/2
+            if mac == '-' and state == 'INCMP':
+                continue
+
             try:
                 if age == '-':
                     age = 0
