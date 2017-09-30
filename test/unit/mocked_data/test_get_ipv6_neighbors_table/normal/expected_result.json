@@ -2,7 +2,7 @@
 	"interface": "Ethernet2",
 	"ip": "2000:0:0:4::2",
 	"mac": "00:03:A0:D6:14:1E",
-	"age": 0,
+	"age": 60,
   "state": "REACH"
 }, {
 	"interface": "Ethernet2",
