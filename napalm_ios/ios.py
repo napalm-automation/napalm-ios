@@ -1548,8 +1548,8 @@ class IOSDriver(NetworkDriver):
                 _, _, _, proc_used_mem, proc_free_mem = line.split()[:5]
             elif 'I/O' in line or 'io' in line:
                 _, _, _, io_used_mem, io_free_mem = line.split()[:5]
-        used_mem = int(proc_used_mem) + int(io_used_mem)
-        free_mem = int(proc_free_mem) + int(io_free_mem)
+        used_mem = int(proc_used_mem) + int(locals().get('io_used_mem', 0))
+        free_mem = int(proc_free_mem) + int(locals().get('io_free_mem', 0))
         environment.setdefault('memory', {})
         environment['memory']['used_ram'] = used_mem
         environment['memory']['available_ram'] = free_mem
