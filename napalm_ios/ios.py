@@ -1702,6 +1702,33 @@ class IOSDriver(NetworkDriver):
 
         return ntp_servers
 
+    def get_ntp_peers(self):
+        """Implementation of get_ntp_peers for IOS.
+
+        Returns the NTP servers configuration as dictionary.
+        The keys of the dictionary represent the IP Addresses of the servers.
+        Inner dictionaries do not have yet any available keys.
+        Example::
+            {
+                '192.168.0.1': {},
+                '17.72.148.53': {},
+                '37.187.56.220': {},
+                '162.158.20.18': {}
+            }
+        """
+        ntp_peers = {}
+        command = 'show run | include ntp peer'
+        output = self._send_command(command)
+
+        for line in output.splitlines():
+            split_line = line.split()
+            if "vrf" == split_line[2]:
+                ntp_peers[split_line[4]] = {}
+            else:
+                ntp_peers[split_line[2]] = {}
+
+        return ntp_peers
+
     def get_ntp_stats(self):
         """Implementation of get_ntp_stats for IOS."""
         ntp_stats = []
