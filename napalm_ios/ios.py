@@ -386,7 +386,7 @@ class IOSDriver(NetworkDriver):
         self.device.set_base_prompt()
         return output
 
-    def commit_config(self):
+    def commit_config(self, confirmed=0):
         """
         If replacement operation, perform 'configure replace' for the entire config.
 
@@ -403,6 +403,8 @@ class IOSDriver(NetworkDriver):
                 raise ReplaceConfigException("Candidate config file does not exist")
             if self.auto_rollback_on_error:
                 cmd = 'configure replace {} force revert trigger error'.format(cfg_file)
+            elif confirmed:
+                cmd = 'configure replace bootflash:{} force time {}'.format(cfg_file, confirmed)
             else:
                 cmd = 'configure replace {} force'.format(cfg_file)
             output = self._commit_hostname_handler(cmd)
@@ -420,8 +422,17 @@ class IOSDriver(NetworkDriver):
             cfg_file = self._gen_full_path(filename)
             if not self._check_file_exists(cfg_file):
                 raise MergeConfigException("Merge source config file does not exist")
-            cmd = 'copy {} running-config'.format(cfg_file)
             self._disable_confirm()
+            if confirmed:
+                # Replace running config with the rollback config
+                # And schedule the revert time
+                # If not confirmed, it will go back to the current running-config state
+                cmd = 'configure replace bootflash:{} force time {}'.format(self.rollback_cfg,
+                                                                            confirmed)
+                output = self.device.send_command_expect(cmd)
+                # The rest of the commands will be loaded directly through the normal
+                #   merge into the running-config
+            cmd = 'copy {} running-config'.format(cfg_file)
             output = self._commit_hostname_handler(cmd)
             self._enable_confirm()
             if 'Invalid input detected' in output:
@@ -430,6 +441,13 @@ class IOSDriver(NetworkDriver):
                 merge_error = "{0}:\n{1}".format(err_header, output)
                 raise MergeConfigException(merge_error)
 
+        if not confirmed:
+            # Save config to startup (both replace and merge)
+            output += self.device.send_command_expect("write mem")
+
+    def commit_confirm(self):
+        # Confirm replacement of running-config
+        output = self.device.send_command_expect('configure confirm')
         # Save config to startup (both replace and merge)
         output += self.device.send_command_expect("write mem")
 
