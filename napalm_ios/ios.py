@@ -2006,8 +2006,8 @@ class IOSDriver(NetworkDriver):
                 fields = line.split()
                 if 'Success rate is 0' in line:
                     sent_and_received = re.search(r'\((\d*)/(\d*)\)', fields[5])
-                    probes_sent = int(sent_and_received.groups()[0])
-                    probes_received = int(sent_and_received.groups()[1])
+                    probes_sent = int(sent_and_received.groups()[1])
+                    probes_received = int(sent_and_received.groups()[0])
                     ping_dict['success']['probes_sent'] = probes_sent
                     ping_dict['success']['packet_loss'] = probes_sent - probes_received
                 elif 'Success rate is' in line:
