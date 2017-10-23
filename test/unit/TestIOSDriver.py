@@ -21,6 +21,45 @@ from napalm_base.test.base import TestConfigNetworkDriver, TestGettersNetworkDri
 import re
 
 
+class TestIPv4IPv6RegEx(unittest.TestCase):
+    """Test IPv4 and IPv6 regex"""
+
+    def _test_regex(self, patt, s):
+        match = patt.match(s)
+        if not match:
+            self.fail("Can't parse {}".format(s))
+        if match.group(0) != s:
+            self.fail("Parsing error: {} expected, {} found".format(
+                s, match.group(0)
+            ))
+
+    def test_ipv6_regex(self):
+        """IPv6 regex"""
+
+        lst = ['1:2:3:4:5:6:7:8', '1::', '1:2:3:4:5:6:7::', '1::8',
+               '1:2:3:4:5:6::8', '1:2:3:4:5:6::8', '1::7:8', '1:2:3:4:5::7:8',
+               '1:2:3:4:5::8', '1::6:7:8', '1:2:3:4::6:7:8', '1:2:3:4::8',
+               '1::5:6:7:8', '1:2:3::5:6:7:8', '1:2:3::8', '1::4:5:6:7:8',
+               '1:2::4:5:6:7:8', '1:2::8', '1::3:4:5:6:7:8', '1::3:4:5:6:7:8',
+               '1::8', '::2:3:4:5:6:7:8', '::2:3:4:5:6:7:8', '::8', '::',
+               '::123.12.1.0', '::255.255.255.255', '::',
+               '::ffff:255.255.255.255', '::ffff:0:255.255.255.255',
+               '2001:db8:3:4::192.0.2.33', '64:ff9b::192.0.2.33',
+               '2001:db8::1']
+        patt = re.compile(ios.IPV6_ADDR_REGEX)
+        for s in lst:
+            self._test_regex(patt, s)
+
+    def test_ipv4_regex(self):
+        """IPv4 regex"""
+
+        lst = ['0.0.0.0', '255.255.255.255', '0.1.2.3',
+               '0.0.0.255']
+        patt = re.compile(ios.IPV4_ADDR_REGEX)
+        for s in lst:
+            self._test_regex(patt, s)
+
+
 class TestConfigIOSDriver(unittest.TestCase, TestConfigNetworkDriver):
     """Configuration Tests for IOSDriver.
 
